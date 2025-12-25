@@ -10,10 +10,7 @@ export const Header = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const navLinks = [
-    { path: "/", label: "Issues" },
-    { path: "/report", label: "Report Issue" },
-  ];
+  const navLinks = [{ path: "/report", label: "Report Issue" }];
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
@@ -25,7 +22,9 @@ export const Header = () => {
           </div>
           <div className="hidden sm:block">
             <h1 className="text-lg font-bold text-foreground">CampusVoice</h1>
-            <p className="text-xs text-muted-foreground">Anonymous Issue Reporter</p>
+            <p className="text-xs text-muted-foreground">
+              Anonymous Issue Reporter
+            </p>
           </div>
         </Link>
 
@@ -61,7 +60,11 @@ export const Header = () => {
             size="icon"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileMenuOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </div>

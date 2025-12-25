@@ -19,8 +19,22 @@ interface FilterBarProps {
   onClearFilters: () => void;
 }
 
-const statuses: (IssueStatus | "all")[] = ["all", "Reported", "Assigned", "In Progress", "Resolved"];
-const categories: (IssueCategory | "all")[] = ["all", "Infrastructure", "Safety", "Cleanliness", "Academics", "Hostel", "Other"];
+const statuses: (IssueStatus | "all")[] = [
+  "all",
+  "Reported",
+  "Assigned",
+  "In Progress",
+  "Resolved",
+];
+const categories: (IssueCategory | "all")[] = [
+  "all",
+  "Infrastructure",
+  "Safety",
+  "Cleanliness",
+  "Academics",
+  "Hostel",
+  "Other",
+];
 
 export const FilterBar = ({
   statusFilter,
@@ -34,15 +48,19 @@ export const FilterBar = ({
   const hasFilters = statusFilter !== "all" || categoryFilter !== "all";
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground flex-shrink-0">
         <Filter className="h-4 w-4" />
         Filters
       </div>
 
-      <div className="flex flex-1 flex-wrap items-center gap-3">
-        <Select value={statusFilter} onValueChange={(v) => onStatusChange(v as IssueStatus | "all")}>
-          <SelectTrigger className="w-[140px]">
+      <div className="flex flex-1 items-center gap-3 overflow-x-auto no-scrollbar whitespace-nowrap -mx-2 px-2">
+        {/* Use nowrap and prevent children from shrinking so they scroll horizontally on small screens */}
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => onStatusChange(v as IssueStatus | "all")}
+        >
+          <SelectTrigger className="w-[140px] flex-shrink-0">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -54,8 +72,11 @@ export const FilterBar = ({
           </SelectContent>
         </Select>
 
-        <Select value={categoryFilter} onValueChange={(v) => onCategoryChange(v as IssueCategory | "all")}>
-          <SelectTrigger className="w-[150px]">
+        <Select
+          value={categoryFilter}
+          onValueChange={(v) => onCategoryChange(v as IssueCategory | "all")}
+        >
+          <SelectTrigger className="w-[150px] flex-shrink-0">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent>
@@ -70,8 +91,10 @@ export const FilterBar = ({
         <Button
           variant={sortOrder === "latest" ? "secondary" : "ghost"}
           size="sm"
-          onClick={() => onSortChange(sortOrder === "latest" ? "oldest" : "latest")}
-          className="gap-1"
+          onClick={() =>
+            onSortChange(sortOrder === "latest" ? "oldest" : "latest")
+          }
+          className="gap-1 flex-shrink-0"
         >
           {sortOrder === "latest" ? (
             <>
@@ -87,7 +110,12 @@ export const FilterBar = ({
         </Button>
 
         {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={onClearFilters} className="gap-1 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClearFilters}
+            className="gap-1 text-muted-foreground flex-shrink-0"
+          >
             <X className="h-4 w-4" />
             Clear
           </Button>

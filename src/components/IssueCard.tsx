@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CategoryBadge } from "@/components/CategoryBadge";
 import type { Issue } from "@/types/issue";
+import { toDateSafe } from "@/lib/issues";
 
 interface IssueCardProps {
   issue: Issue;
@@ -12,11 +13,18 @@ interface IssueCardProps {
 }
 
 export const IssueCard = ({ issue, index = 0 }: IssueCardProps) => {
-  const formattedDate = new Date(issue.createdAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const issueDate = (() => {
+    const created = issue.createdAt as unknown;
+    const isTimestamp = (v: unknown): v is { toDate: () => Date } =>
+      typeof v === "object" &&
+      v !== null &&
+      typeof (v as { toDate?: unknown }).toDate === "function";
+
+    const date = isTimestamp(created)
+      ? created.toDate()
+      : new Date(created as string | number | Date | undefined);
+    return date.toLocaleDateString();
+  })();
 
   const thumbnailUrl = issue.media.find((m) => m.type === "image")?.url;
 
@@ -69,7 +77,7 @@ export const IssueCard = ({ issue, index = 0 }: IssueCardProps) => {
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" />
-                      {formattedDate}
+                      {issueDate}
                     </span>
                     {issue.location.address && (
                       <span className="flex items-center gap-1">

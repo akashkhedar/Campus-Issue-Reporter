@@ -8,14 +8,24 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-const statusConfig: Record<IssueStatus, { variant: "reported" | "assigned" | "in-progress" | "resolved"; icon: typeof Clock }> = {
+const statusConfig: Record<
+  IssueStatus,
+  {
+    variant: "reported" | "assigned" | "in-progress" | "resolved";
+    icon: typeof Clock;
+  }
+> = {
   Reported: { variant: "reported", icon: Clock },
   Assigned: { variant: "assigned", icon: UserCheck },
   "In Progress": { variant: "in-progress", icon: Loader2 },
   Resolved: { variant: "resolved", icon: CheckCircle2 },
 };
 
-export const StatusBadge = ({ status, showIcon = true, className }: StatusBadgeProps) => {
+export const StatusBadge = ({
+  status,
+  showIcon = true,
+  className,
+}: StatusBadgeProps) => {
   const config = statusConfig[status];
   const Icon = config.icon;
 

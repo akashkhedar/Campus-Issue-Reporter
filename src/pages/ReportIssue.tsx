@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import { MediaUploader } from "@/components/MediaUploader";
 import { MapPicker } from "@/components/MapPicker";
 import type { IssueCategory, Location } from "@/types/issue";
 import { useToast } from "@/hooks/use-toast";
+import { addIssue } from "@/lib/issues";
 
 const categories: IssueCategory[] = [
   "Infrastructure",
@@ -30,15 +31,21 @@ const categories: IssueCategory[] = [
 ];
 
 const formSchema = z.object({
-  title: z.string().min(5, "Title must be at least 5 characters").max(100, "Title must be less than 100 characters"),
-  description: z.string().min(20, "Description must be at least 20 characters").max(2000, "Description must be less than 2000 characters"),
+  title: z
+    .string()
+    .min(5, "Title must be at least 5 characters")
+    .max(100, "Title must be less than 100 characters"),
+  description: z
+    .string()
+    .min(20, "Description must be at least 20 characters")
+    .max(2000, "Description must be less than 2000 characters"),
   category: z.string().min(1, "Please select a category"),
 });
 
 const ReportIssuePage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<IssueCategory | "">("");
@@ -47,17 +54,95 @@ const ReportIssuePage = () => {
   const [video, setVideo] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const requestLiveLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Location not supported",
+        description: "Your browser does not support location services.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const accuracy = pos.coords.accuracy;
+
+        let address: string | undefined;
+
+        // Try reverse geocoding (non-blocking)
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const g = (window as any)?.google;
+          if (g?.maps?.Geocoder) {
+            const geocoder = new g.maps.Geocoder();
+            const results = await new Promise<
+              { formatted_address?: string }[] | null
+            >((resolve) => {
+              geocoder.geocode({ location: { lat, lng } }, (res, status) => {
+                if (status === "OK" && res?.length) resolve(res);
+                else resolve(null);
+              });
+            });
+
+            address = results?.[0]?.formatted_address;
+          }
+        } catch {
+          // ignore reverse geocoding failures
+        }
+
+        setLocation({ lat, lng, address });
+
+        // Accuracy warning (not a failure)
+        if (accuracy > 1000) {
+          toast({
+            title: "Low GPS accuracy",
+            description:
+              "Location detected, but accuracy is low. You may adjust the pin manually.",
+          });
+        }
+
+        setIsLocating(false);
+      },
+      (error) => {
+        setIsLocating(false);
+
+        let message = "Unable to access location.";
+        if (error.code === 1) message = "Location permission denied.";
+        if (error.code === 2) message = "Location unavailable.";
+        if (error.code === 3)
+          message = "Location request timed out. Try again.";
+
+        toast({
+          title: "Location error",
+          description: message,
+          variant: "destructive",
+        });
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 60000,
+      }
+    );
+  };
 
   const validateForm = () => {
     try {
       formSchema.parse({ title, description, category });
-      
-      if (!location) {
+
+      if (!location || !location.lat || !location.lng) {
         setErrors({ location: "Please pin a location on the map" });
         return false;
       }
-      
+
       setErrors({});
       return true;
     } catch (error) {
@@ -76,24 +161,37 @@ const ReportIssuePage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const issueId = await addIssue({
+        title,
+        description,
+        category,
+        location: location as Location,
+        mediaFiles: images,
+        videoFile: video,
+      });
 
-    // Generate a mock issue ID
-    const mockIssueId = `${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 9)}`;
-
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-
-    toast({
-      title: "Issue Reported Successfully!",
-      description: `Your issue ID: ${mockIssueId.slice(0, 8).toUpperCase()}`,
-    });
+      setIsSubmitted(true);
+      toast({
+        title: "Issue Reported Successfully!",
+        description: `Your issue ID: ${String(issueId)
+          .slice(0, 8)
+          .toUpperCase()}`,
+      });
+    } catch {
+      toast({
+        title: "Submission Failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSubmitted) {
@@ -113,8 +211,8 @@ const ReportIssuePage = () => {
               Issue Reported!
             </h1>
             <p className="mb-8 text-muted-foreground">
-              Your issue has been submitted anonymously. You can track its progress
-              on the public feed using the issue ID.
+              Your issue has been submitted anonymously. You can track its
+              progress on the public feed using the issue ID.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Button variant="hero" onClick={() => navigate("/")}>
@@ -171,7 +269,10 @@ const ReportIssuePage = () => {
             </p>
             <div className="mt-4 flex items-center gap-2 rounded-lg bg-secondary/50 p-3 text-sm text-secondary-foreground">
               <Shield className="h-5 w-5 flex-shrink-0" />
-              <span>Your privacy is protected. We don't collect any personal identifiers.</span>
+              <span>
+                Your privacy is protected. We don't collect any personal
+                identifiers.
+              </span>
             </div>
           </div>
 
@@ -195,8 +296,13 @@ const ReportIssuePage = () => {
             {/* Category */}
             <div className="space-y-2">
               <Label>Category *</Label>
-              <Select value={category} onValueChange={(v) => setCategory(v as IssueCategory)}>
-                <SelectTrigger className={errors.category ? "border-destructive" : ""}>
+              <Select
+                value={category}
+                onValueChange={(v) => setCategory(v as IssueCategory)}
+              >
+                <SelectTrigger
+                  className={errors.category ? "border-destructive" : ""}
+                >
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -237,7 +343,7 @@ const ReportIssuePage = () => {
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                Location *
+                {location ? "Update my location" : "Use my current location"}
               </Label>
               <MapPicker
                 location={location}
@@ -245,12 +351,30 @@ const ReportIssuePage = () => {
                 className="h-[300px]"
               />
               {location?.address && (
-                <p className="text-sm text-muted-foreground">{location.address}</p>
+                <p className="text-sm text-muted-foreground">
+                  {location.address}
+                </p>
               )}
               {errors.location && (
                 <p className="text-sm text-destructive">{errors.location}</p>
               )}
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={requestLiveLocation}
+              disabled={isLocating}
+            >
+              {isLocating ? (
+                <>
+                  <div className="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                  Locating...
+                </>
+              ) : (
+                "Use my current location"
+              )}
+            </Button>
 
             {/* Media Upload */}
             <div className="space-y-2">

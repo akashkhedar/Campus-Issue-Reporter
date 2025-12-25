@@ -1,6 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Calendar, User, Building, Mail, Image as ImageIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  MapPin,
+  Calendar,
+  User,
+  Building,
+  Mail,
+  Image as ImageIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Header } from "@/components/Header";
@@ -9,11 +18,59 @@ import { CategoryBadge } from "@/components/CategoryBadge";
 import { StatusTimeline } from "@/components/StatusTimeline";
 import { MapPicker } from "@/components/MapPicker";
 import { getIssueById } from "@/data/demoIssues";
+import { getIssue } from "@/lib/issues";
+import type { Issue } from "@/types/issue";
 
 const IssueDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const issue = id ? getIssueById(id) : undefined;
+
+  const [issue, setIssue] = useState<Issue | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        const remote = await getIssue(id);
+        if (!mounted) return;
+        if (remote) {
+          setIssue(remote);
+        } else {
+          // fallback to demo data
+          const demo = getIssueById(id);
+          setIssue(demo);
+        }
+      } catch (err) {
+        console.error("Failed to load issue:", err);
+        if (!mounted) return;
+        const demo = getIssueById(id);
+        setIssue(demo);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto flex min-h-[60vh] items-center justify-center px-4">
+          <div className="text-center text-muted-foreground">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!issue) {
     return (
@@ -21,7 +78,9 @@ const IssueDetailPage = () => {
         <Header />
         <div className="container mx-auto flex min-h-[60vh] items-center justify-center px-4">
           <div className="text-center">
-            <h1 className="mb-4 text-2xl font-bold text-foreground">Issue Not Found</h1>
+            <h1 className="mb-4 text-2xl font-bold text-foreground">
+              Issue Not Found
+            </h1>
             <p className="mb-6 text-muted-foreground">
               The issue you're looking for doesn't exist or has been removed.
             </p>
@@ -34,14 +93,18 @@ const IssueDetailPage = () => {
     );
   }
 
-  const formattedDate = new Date(issue.createdAt).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const issueDate = (() => {
+    const created = issue.createdAt as unknown;
+    const isTimestamp = (v: unknown): v is { toDate: () => Date } =>
+      typeof v === "object" &&
+      v !== null &&
+      typeof (v as { toDate?: unknown }).toDate === "function";
+
+    const date = isTimestamp(created)
+      ? created.toDate()
+      : new Date(created as string | number | Date | undefined);
+    return date.toLocaleDateString();
+  })();
 
   return (
     <div className="min-h-screen bg-background">
@@ -77,7 +140,7 @@ const IssueDetailPage = () => {
             </h1>
             <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
-              Reported on {formattedDate}
+              Reported on {issueDate}
             </div>
           </div>
 
