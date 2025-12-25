@@ -124,6 +124,22 @@ const AdminDashboardPage = () => {
     resolved: issues.filter((i) => i.status === "Resolved").length,
   };
 
+  const formatDate = (value: unknown) => {
+    if (!value) return "—";
+    // support Firestore Timestamp-like objects with toDate()
+    if (typeof (value as { toDate?: () => Date })?.toDate === "function") {
+      value = (value as { toDate: () => Date }).toDate();
+    }
+    let date: Date | null = null;
+    if (typeof value === "number" || typeof value === "string") {
+      date = new Date(value);
+    } else if (value instanceof Date) {
+      date = value;
+    }
+    if (!date || isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString();
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -323,7 +339,7 @@ const AdminDashboardPage = () => {
                             />
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {new Date(issue.createdAt).toLocaleDateString()}
+                            {formatDate(issue.createdAt)}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end items-center gap-2">
